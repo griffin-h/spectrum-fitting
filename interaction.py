@@ -127,7 +127,7 @@ class LinePlot:
         else:
             velocity = 2. * np.sqrt(2. * np.log(2.)) * c * width / center  # FWHM of the emission line
         equivwidth = np.trapz(y1 / continuum, x, axis=0)
-        flux = np.trapz(y1, x * 10., axis=0)
+        flux = np.trapz(y1, x, axis=0)
 
         v = np.mean(velocity)
         dv = np.std(velocity)
@@ -138,8 +138,8 @@ class LinePlot:
         self.params = [v, dv, ew, dew, f, df]
 
         print('FWHM velocity = {:.3f} +/- {:.3f}'.format(v, dv))
-        print('equivalent width = {:.3f} +/- {:.3f} nm'.format(ew, dew))
-        print('flux = {:.3e} +/- {:.3e} erg/s'.format(f, df))
+        print('equivalent width = {:.3f} +/- {:.3f}'.format(ew, dew))
+        print('flux = {:.3e} +/- {:.3e}'.format(f, df))
 
         ps = [sampler.flatchain[i] for i in np.random.choice(sampler.flatchain.shape[0], 100)]
         for p in ps:
@@ -274,7 +274,7 @@ def read_spectra(filenames, redshift, refmjd=0.):
     instruments = []
     for fn in filenames:
         wl, flux, date, tel, inst = readspec(fn)
-        wl /= (1 + redshift) * 10.  # correct to rest wavelength and convert to nm
+        wl /= (1 + redshift)  # correct to rest wavelength
         if wl[0] > wl[-1]:  # if the spectrum is stored backwards, flip it now
             wl = wl[::-1]
             flux = flux[::-1]
@@ -305,11 +305,11 @@ def read_spectra(filenames, redshift, refmjd=0.):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Measure line velocities and equivalent widths in spectra.')
     parser.add_argument('filenames', nargs='+', help='filenames of the spectra')
-    parser.add_argument('-l', '--wavelength', type=float, default=656.5, help="wavelength of line")
+    parser.add_argument('-l', '--wavelength', type=float, default=6563., help="wavelength of line")
     parser.add_argument('--l2', type=float, default=0, help="wavelength of second line")
     parser.add_argument('-z', '--redshift', type=float, default=0., help="redshift to correct the spectra")
     parser.add_argument('-t', '--refmjd', type=float, default=0., help="reference MJD to calculate phase")
-    parser.add_argument('-w', '--viewwidth', type=float, default=20, help="estimated width of the line")
+    parser.add_argument('-w', '--viewwidth', type=float, default=200., help="estimated width of the line")
     parser.add_argument('-p', '--profile', default='emis', choices=['two', 'pcyg', 'emis', 'bc', 'rc', 'pcygbc', 'twobc'],
                         help="emission line (emis) or P Cygni line (pcyg)?")
     parser.add_argument('-c', '--corner', action='store_true', help="show corner plot")
