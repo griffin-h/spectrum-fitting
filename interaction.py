@@ -414,6 +414,42 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
     return tout
 
 
+def read_spectra(filenames, redshift, refmjd=0.):
+    wls = []
+    fluxes = []
+    dates = []
+    telescopes = []
+    instruments = []
+    for fn in filenames:
+        wl, flux, date, tel, inst = readspec(fn)
+        wl /= (1 + redshift) * 10.  # correct to rest wavelength and convert to nm
+        if wl[0] > wl[-1]:  # if the spectrum is stored backwards, flip it now
+            wl = wl[::-1]
+            flux = flux[::-1]
+        wls.append(wl)
+        fluxes.append(flux)
+        dates.append(Time.now() if date is None else date)
+        telescopes.append(tel)
+        instruments.append(inst)
+    if len(wls) and all([len(wl) == len(wls[0]) for wl in wls]):  # stupid astropy workaround
+        filenames.append('fake')
+        wls.append(np.array([]))
+        fluxes.append(np.array([]))
+        dates.append(Time.now())
+        telescopes.append('fake')
+        instruments.append('fake')
+        spectra = Table([filenames, dates, telescopes, instruments, wls, fluxes],
+                        names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
+                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
+        spectra = spectra[:-1]
+    else:
+        spectra = Table([filenames, dates, telescopes, instruments, wls, fluxes],
+                        names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
+                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
+    spectra['phase'] = (spectra['date'].mjd - refmjd) / (1. + redshift)
+    return spectra
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Measure line velocities and equivalent widths in spectra.')
     parser.add_argument('filenames', nargs='+', help='filenames of the spectra')
@@ -428,38 +464,7 @@ if __name__ == '__main__':
     parser.add_argument('--output-dir', default='.', help="directory to which to save the output table")
     args = parser.parse_args()
 
-    wls = []
-    fluxes = []
-    dates = []
-    telescopes = []
-    instruments = []
-    for fn in args.filenames:
-        wl, flux, date, tel, inst = readspec(fn)
-        wl /= (1 + args.redshift) * 10.  # correct to rest wavelength and convert to nm
-        if wl[0] > wl[-1]:  # if the spectrum is stored backwards, flip it now
-            wl = wl[::-1]
-            flux = flux[::-1]
-        wls.append(wl)
-        fluxes.append(flux)
-        dates.append(Time.now() if date is None else date)
-        telescopes.append(tel)
-        instruments.append(inst)
-    if len(wls) and all([len(wl) == len(wls[0]) for wl in wls]):  # stupid astropy workaround
-        args.filenames.append('fake')
-        wls.append(np.array([]))
-        fluxes.append(np.array([]))
-        dates.append(Time.now())
-        telescopes.append('fake')
-        instruments.append('fake')
-        spectra = Table([args.filenames, dates, telescopes, instruments, wls, fluxes],
-                        names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
-                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
-        spectra = spectra[:-1]
-    else:
-        spectra = Table([args.filenames, dates, telescopes, instruments, wls, fluxes],
-                        names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
-                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
-    spectra['phase'] = (spectra['date'].mjd - args.refmjd) / (1. + args.redshift)
+    spectra = read_spectra(args.filenames, args.redshift, refmjd=args.refmjd)
     tout = measure_specvels(spectra, args.profile, args.wavelength, args.l2, args.viewwidth, args.corner)
     savefile = input('Save results as... ')
     if savefile:
