@@ -6,11 +6,10 @@ from lightcurve_fitting.speccal import readspec
 from corner import corner
 from astropy.table import hstack, Table
 from astropy.time import Time
+from astropy.constants import c
 import argparse
 from matplotlib.gridspec import GridSpec
 from fitting import MCgauss, gaussian
-
-c = 299.792458  # speed of light in Mm/s
 
 
 def closestpt(x, y, refx, refy, ax=None):
@@ -337,7 +336,7 @@ def plot_results(t, ycol='flux'):
 
 
 def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=False):
-    params = []
+    tparams = Table(names=('v', 'dv', 'EW', 'dEW', 'flux', 'dflux'))
     if profile == 'two':
         nparams = 6
         figsize = (5, 15)
@@ -367,7 +366,7 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
         yshown = flux[(wl > linewl - viewwidth) & (wl < linewl + viewwidth)]
         if len(yshown) == 0:
             print('out of range for', spec['filename'], '(phase = {:+.1f})'.format(spec['phase']))
-            params.append([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+            tparams.add_row([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
             continue
         f = plt.figure(figsize=figsize)
         ax1 = plt.subplot(gs[0:2])
@@ -403,11 +402,10 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
         #     plt.clf()
         # if cont == 'r':
         #     print('fit rejected')
-        #     params.append([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+        #     tparams.add_row([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
         # else:
-        params.append(dr.params)
+        tparams.add_row(dr.params)
 
-    tparams = Table(rows=params, names=('v', 'dv', 'EW', 'dEW', 'flux', 'dflux'))
     for col in tparams.colnames:
         tparams[col].format = '%.3e'
     tout = hstack([spectra[['filename', 'date', 'telescope', 'instrument', 'phase']], tparams])
