@@ -461,7 +461,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--profile', default='emis', choices=['two', 'pcyg', 'emis', 'bc', 'rc', 'pcygbc', 'twobc'],
                         help="emission line (emis) or P Cygni line (pcyg)?")
     parser.add_argument('-c', '--corner', action='store_true', help="show corner plot")
-    parser.add_argument('--output-dir', default='.', help="directory to which to save the output table")
     args = parser.parse_args()
 
     spectra = read_spectra(args.filenames, args.redshift, refmjd=args.refmjd)
