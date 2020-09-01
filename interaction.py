@@ -100,206 +100,58 @@ class LinePlot:
             self.ax3[i].plot(sampler.chain[:, :, i].T, 'k', alpha=0.2)
 
         if self.profile == 'emis':
-            width = sampler.flatchain[:, 1]
-            s = np.mean(width)
-            ds = np.std(width)
-            center = sampler.flatchain[:, 2]
-            x0 = np.mean(center)
-            dx0 = np.std(center)
-            continuum = sampler.flatchain[:, 3]
-            y0 = np.mean(continuum)
-            dy0 = np.std(continuum)
+            amplitude, width, center, continuum = sampler.flatchain.T
+            slope = 0.
+        elif self.profile == 'bc' or self.profile == 'rc':
+            amplitude, width, slope, center, continuum = sampler.flatchain.T
+        elif self.profile == 'pcyg' or self.profile == 'two':
+            amplitude, width, ratio, center, continuum, offset = sampler.flatchain.T
+            slope = 0.
+        elif self.profile == 'pcygbc' or self.profile == 'twobc':
+            amplitude, width, ratio, slope, center, continuum, offset = sampler.flatchain.T
+        else:
+            raise ValueError(f'profile "{self.profile}" not recognized')
 
-            velocity = 2 * np.sqrt(2 * np.log(2)) * c * width / center
-            v = np.mean(velocity)
-            dv = np.std(velocity)
-            #            dv = 2 * c * np.sqrt(2 * np.log(2) * ((ds/x0)**2 + (s*dx0/x0**2)))
-            equivwidth = np.trapz(1 - y / continuum[:, np.newaxis], x)
-            ew = np.mean(equivwidth)
-            dew = np.std(equivwidth)
-            #            dew = np.sqrt((0.05**2 + (dy0/y0)**2) * np.sum((y/y0)**2)) * np.median(np.diff(x))
-            flux = np.trapz(y - continuum[:, np.newaxis], x * 10.)
-            f = np.mean(flux)
-            df = np.std(flux)
+        y1 = y[:, np.newaxis]
 
-            print('FWHM velocity = {:.3f} +/- {:.3f} km/s'.format(v, dv))
-            print('equivalent width = {:.3f} +/- {:.3f} nm'.format(ew, dew))
-            print('flux = {:.3e} +/- {:.3e} erg/s'.format(f, df))
+        # subtract off the second emission line
+        if 'two' in self.profile:
+            y1 = y1 - gaussian(x[:, np.newaxis], ratio * amplitude, width, center + offset, 0)
+            self.fits += self.line.axes.plot(x, y1.mean(axis=-1), color='b')
 
-        elif self.profile == 'pcyg':
-            centerA = sampler.flatchain[:, 3]
-            x0A = np.mean(centerA)
-            dx0A = np.std(centerA)
-            centerB = sampler.flatchain[:, 5]
-            x0B = np.mean(centerB)
-            dx0B = np.std(centerB)
+        # subtract off the flat or linear continuum
+        y1 = y1 - continuum - slope * (x[:, np.newaxis] - center)
 
-            v = c * (1 - x0B / x0A)
-            dv = c * np.sqrt(dx0A ** 2 / x0B ** 2 + x0A ** 2 * dx0B ** 2 / x0B ** 4)
-            #            xbound = (self.linewl + x0) / 2
-            ew = np.nan  # np.trapz((1-y[x < xbound]/y0), x[x < xbound])
-            dew = np.nan  # np.sqrt((0.05**2 + (dy0/y0)**2) * np.sum((y[x < xbound]/y0)**2))
-            f = np.nan
-            df = np.nan
-            print('absorption velocity = {:.2f} +/- {:.2f}'.format(v, dv))
-        #            print 'equivalent width = {:.1f} +/- {:.1f} (?)'.format(ew, dew)
+        if 'pcyg' in self.profile:
+            velocity = c * (1. - offset / center)  # absorption minimum
+        else:
+            velocity = 2. * np.sqrt(2. * np.log(2.)) * c * width / center  # FWHM of the emission line
+        equivwidth = np.trapz(y1 / continuum, x, axis=0)
+        flux = np.trapz(y1, x * 10., axis=0)
 
-        elif self.profile == 'two':
-            amplitude = sampler.flatchain[:, 0]
-            A = np.mean(amplitude)
-            dA = np.std(amplitude)
-            width = sampler.flatchain[:, 1]
-            s = np.mean(width)
-            ds = np.std(width)
-            ratio = sampler.flatchain[:, 2]
-            rA = np.mean(ratio)
-            drA = np.std(ratio)
-            center = sampler.flatchain[:, 3]
-            x0 = np.mean(center)
-            dx0 = np.std(center)
-            continuum = sampler.flatchain[:, 4]
-            y0 = np.mean(continuum)
-            dy0 = np.std(continuum)
-            offset = sampler.flatchain[:, 5]
-            dx = np.mean(offset)
-            ddx = np.std(offset)
-            y1 = y - gaussian(x, rA * A, s, x0 + dx, 0)
-
-            v = 2 * np.sqrt(2 * np.log(2)) * c * s / x0
-            dv = 2 * c * np.sqrt(2 * np.log(2) * ((ds / x0) ** 2 + (s * dx0 / x0 ** 2)))
-            ew = np.trapz((1 - y1 / y0), x)
-            dew = np.sqrt((0.05 ** 2 + (dy0 / y0) ** 2) * np.sum((y1 / y0) ** 2))
-            f = np.nan
-            df = np.nan
-            print('FWHM velocity = {:.2f} +/- {:.2f}'.format(v, dv))
-            print('equivalent width (green) = {:.1f} +/- {:.1f}'.format(ew, dew))
-
-        elif self.profile == 'bc':
-            width = sampler.flatchain[:, 1]
-            s = np.mean(width)
-            ds = np.std(width)
-            slope = sampler.flatchain[:, 2]
-            m = np.mean(slope)
-            dm = np.std(slope)
-            center = sampler.flatchain[:, 3]
-            x0 = np.mean(center)
-            dx0 = np.std(center)
-            continuum = sampler.flatchain[:, 4]
-            y0 = np.mean(continuum)
-            dy0 = np.std(continuum)
-            bc = y0 - m * (x - x0)
-            dbc = np.sqrt(dy0 ** 2 + (dm * (x - x0)) ** 2 + (m * dx0) ** 2)
-
-            v = 2 * np.sqrt(2 * np.log(2)) * c * s / x0
-            dv = 2 * c * np.sqrt(2 * np.log(2) * ((ds / x0) ** 2 + (s * dx0 / x0 ** 2)))
-            ew = np.trapz(1 - y / (y0 - m * (x - x0)), x)
-            dew = np.sqrt(np.sum((0.05 ** 2 + (dbc / bc) ** 2) * (y / bc) ** 2))
-            flux = np.trapz(y - continuum[:, np.newaxis], x * 10.)
-            f = np.mean(flux)
-            df = np.std(flux)
-            print('FWHM velocity = {:.1f} +/- {:.1f}'.format(v, dv))
-            print('equivalent width = {:.1f} +/- {:.1f}'.format(ew, dew))
-            print('flux = {:.3e} +/- {:.3e} erg/s'.format(f, df))
-            print('center = {:.1f} +/- {:.1f} nm'.format(x0, dx0))
-
-        elif self.profile == 'rc':
-            width = sampler.flatchain[:, 1]
-            s = np.mean(width)
-            ds = np.std(width)
-            slope = sampler.flatchain[:, 2]
-            m = np.mean(slope)
-            dm = np.std(slope)
-            center = sampler.flatchain[:, 3]
-            x0 = np.mean(center)
-            dx0 = np.std(center)
-            continuum = sampler.flatchain[:, 4]
-            y0 = np.mean(continuum)
-            dy0 = np.std(continuum)
-            rc = y0 + m * (x - x0)
-            drc = np.sqrt(dy0 ** 2 + (dm * (x - x0)) ** 2 + (m * dx0) ** 2)
-
-            v = 2 * np.sqrt(2 * np.log(2)) * c * s / x0
-            dv = 2 * c * np.sqrt(2 * np.log(2) * ((ds / x0) ** 2 + (s * dx0 / x0 ** 2)))
-            ew = np.trapz(1 - y / (y0 + m * (x - x0)), x)
-            dew = np.sqrt(np.sum((0.05 ** 2 + (drc / rc) ** 2) * (y / rc) ** 2))
-            flux = np.trapz(y - continuum[:, np.newaxis], x * 10.)
-            f = np.mean(flux)
-            df = np.std(flux)
-            print('FWHM velocity = {:.1f} +/- {:.1f}'.format(v, dv))
-            print('equivalent width = {:.1f} +/- {:.1f}'.format(ew, dew))
-            print('flux = {:.3e} +/- {:.3e} erg/s'.format(f, df))
-            print('center = {:.1f} +/- {:.1f} nm'.format(x0, dx0))
-
-        elif self.profile == 'pcygbc':
-            centerA = sampler.flatchain[:, 4]
-            x0A = np.mean(centerA)
-            dx0A = np.std(centerA)
-            centerB = sampler.flatchain[:, 6]
-            x0B = np.mean(centerB)
-            dx0B = np.std(centerB)
-
-            v = c * (1 - x0B / x0A)
-            dv = c * np.sqrt(dx0A ** 2 / x0B ** 2 + x0A ** 2 * dx0B ** 2 / x0B ** 4)
-            ew = np.nan
-            dew = np.nan
-            f = np.nan
-            df = np.nan
-            print('absorption velocity = {:.2f} +/- {:.2f}'.format(v, dv))
-
-        elif self.profile == 'twobc':
-            amplitude = sampler.flatchain[:, 0]
-            A = np.mean(amplitude)
-            dA = np.std(amplitude)
-            width = sampler.flatchain[:, 1]
-            s = np.mean(width)
-            ds = np.std(width)
-            ratio = sampler.flatchain[:, 2]
-            rA = np.mean(ratio)
-            drA = np.std(ratio)
-            slope = sampler.flatchain[:, 3]
-            m = np.mean(slope)
-            dm = np.std(slope)
-            center = sampler.flatchain[:, 4]
-            x0 = np.mean(center)
-            dx0 = np.std(center)
-            continuum = sampler.flatchain[:, 5]
-            y0 = np.mean(continuum)
-            dy0 = np.std(continuum)
-            offset = sampler.flatchain[:, 6]
-            dx = np.mean(offset)
-            ddx = np.std(offset)
-            y1 = y - gaussian(x, rA * A, s, x0 + dx, 0)
-            self.line.axes.plot(x, y1, color='b')
-            bc = y0 - m * (x - x0)
-            dbc = np.sqrt(dy0 ** 2 + (dm * (x - x0)) ** 2 + (m * dx0) ** 2)
-
-            v = 2 * np.sqrt(2 * np.log(2)) * c * s / x0
-            dv = 2 * c * np.sqrt(2 * np.log(2) * ((ds / x0) ** 2 + (s * dx0 / x0 ** 2)))
-            ew = np.trapz(1 - y1 / bc, x)
-            dew = np.sqrt(np.sum((0.05 ** 2 + (dbc / bc) ** 2) * (y1 / bc) ** 2))
-            f = np.nan
-            df = np.nan
-            print('FWHM velocity = {:.2f} +/- {:.2f}'.format(v, dv))
-            print('equivalent width (green) = {:.1f} +/- {:.1f}'.format(ew, dew))
-
-        if self.i0 > self.i1:
-            ew *= -1
+        v = np.mean(velocity)
+        dv = np.std(velocity)
+        ew = np.mean(equivwidth)
+        dew = np.std(equivwidth)
+        f = np.mean(flux)
+        df = np.std(flux)
         self.params = [v, dv, ew, dew, f, df]
 
+        print('FWHM velocity = {:.3f} +/- {:.3f}'.format(v, dv))
+        print('equivalent width = {:.3f} +/- {:.3f} nm'.format(ew, dew))
+        print('flux = {:.3e} +/- {:.3e} erg/s'.format(f, df))
+
         ps = [sampler.flatchain[i] for i in np.random.choice(sampler.flatchain.shape[0], 100)]
-        self.fits = []
         for p in ps:
             yfit = fitfunc(x, *p)
-            #            if self.profile == 'bc':
-            #                yfit -= slope*(x - linewl)
             l = self.line.axes.plot(x, yfit, color='k', alpha=0.05)
             self.fits.append(l[0])
             if 'two' in self.profile:
                 if len(p) == 6:
-                    A, s, dA, x0, y0, dx = p
+                    A, s, rA, x0, y0, dx = p
                     m = 0
                 elif len(p) == 7:
-                    A, s, dA, m, x0, y0, dx = p
+                    A, s, rA, m, x0, y0, dx = p
                 yfitA = gaussian(x, A, s, x0, y0) - m * (x - x0)
                 lA = self.line.axes.plot(x, yfitA, color='g', alpha=0.05)
                 self.fits.append(lA[0])
