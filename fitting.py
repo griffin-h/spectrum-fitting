@@ -92,7 +92,7 @@ def init_guess_two(x, y, bc=False):
     else:
         slope = 0
     rA0 = 1.
-    dx0 = 8.
+    dx0 = 80.
     if bc:
         print(np.array([A0, s0, rA0, slope]), np.array([x00, y00, dx0]))
         return np.array([A0, s0, rA0, slope]), np.array([x00, y00, dx0])
@@ -125,19 +125,19 @@ def MCgauss(x, y, perc_err=0.05, profile='emis', linewl=0, otherwl=0):
     elif profile == 'bc':
         p0_mult, p0_add = init_guess_emis(x, y, continuum_sign=-1)
         unc_mult = np.array([5., 5., 2.])
-        unc_add = np.array([3., p0_add[1]])
+        unc_add = np.array([30., p0_add[1]])
         fitfunc = gaussbc
     elif profile == 'rc':
         p0_mult, p0_add = init_guess_emis(x, y, continuum_sign=1)
         unc_mult = np.array([5., 5., 2.])
-        unc_add = np.array([3., p0_add[1]])
+        unc_add = np.array([30., p0_add[1]])
         fitfunc = gaussrc
     elif profile == 'pcygbc':
         p0_mult, p0_add = init_guess_pcyg(x, y, bc=True)
         if linewl:
             p0_add[0] = linewl
         unc_mult = np.array([5., 5., 5., 2.])
-        unc_add = np.array([2., p0_add[1], 2.])
+        unc_add = np.array([20., p0_add[1], 20.])
         fitfunc = pcygnibc
     elif profile == 'twobc':
         p0_mult, p0_add = init_guess_two(x, y, bc=True)
@@ -146,7 +146,7 @@ def MCgauss(x, y, perc_err=0.05, profile='emis', linewl=0, otherwl=0):
         if otherwl:
             p0_add[2] = otherwl - linewl
         unc_mult = np.array([5., 5., 5., 2.])
-        unc_add = np.array([2., p0_add[1], 2.])
+        unc_add = np.array([20., p0_add[1], 20.])
         fitfunc = twobc
 
     nmult = len(p0_mult)
