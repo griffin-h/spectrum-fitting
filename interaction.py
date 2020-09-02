@@ -91,7 +91,7 @@ class LinePlot:
         i1 = max(self.i0, self.i1)
         x = self.refx[i0:i1]
         y = self.refy[i0:i1]
-        sampler, pos, fitfunc = MCgauss(x, y, profile=self.profile, linewl=self.linewl, otherwl=self.otherwl)
+        sampler, pos, model = MCgauss(x, y, profile=self.profile, linewl=self.linewl, otherwl=self.otherwl)
         for i in range(len(self.ax2)):
             self.ax2[i].plot(sampler.chain[:, :, i].T, 'k', alpha=0.2)
         sampler.reset()
@@ -99,18 +99,13 @@ class LinePlot:
         for i in range(len(self.ax3)):
             self.ax3[i].plot(sampler.chain[:, :, i].T, 'k', alpha=0.2)
 
-        if self.profile == 'emis':
-            amplitude, width, center, continuum = sampler.flatchain.T
-            slope = 0.
-        elif self.profile == 'bc' or self.profile == 'rc':
-            amplitude, width, slope, center, continuum = sampler.flatchain.T
-        elif self.profile == 'pcyg' or self.profile == 'two':
-            amplitude, width, amplitude_1, center, continuum, center_1 = sampler.flatchain.T
-            slope = 0.
-        elif self.profile == 'pcygbc' or self.profile == 'twobc':
-            amplitude, width, amplitude_1, slope, center, continuum, center_1 = sampler.flatchain.T
-        else:
-            raise ValueError(f'profile "{self.profile}" not recognized')
+        parameters = {param_name: chain for param_name, chain in zip(model.param_names, sampler.flatchain.T)}
+        width = parameters['stddev']
+        center = parameters['mean']
+        continuum = parameters['intercept']
+        slope = parameters.get('slope', 0.)
+        amplitude_1 = parameters.get('amplitude_1', 0.)
+        center_1 = parameters.get('mean_1', 0.)
 
         y1 = y[:, np.newaxis]
 
@@ -143,7 +138,7 @@ class LinePlot:
 
         ps = [sampler.flatchain[i] for i in np.random.choice(sampler.flatchain.shape[0], 100)]
         for p in ps:
-            yfit = fitfunc(x, *p)
+            yfit = model(x, *p)
             l = self.line.axes.plot(x, yfit, color='k', alpha=0.05)
             self.fits.append(l[0])
             if 'two' in self.profile:

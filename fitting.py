@@ -30,6 +30,15 @@ def twobc(x, A, s, A1, m, x0, y0, x1):
     return gaussian(x, A, s, x0, y0) + gaussian(x, A1, s, x1, 0) - m * (x - x0)
 
 
+gaussian.param_names = ('amplitude', 'stddev', 'mean', 'intercept')
+pcygni.param_names = ('amplitude', 'stddev', 'amplitude_1', 'mean', 'intercept', 'mean_1')
+twogaussians.param_names = ('amplitude', 'stddev', 'amplitude_1', 'mean', 'intercept', 'mean_1')
+gaussbc.param_names = ('amplitude', 'stddev', 'slope', 'mean', 'intercept')
+gaussrc.param_names = ('amplitude', 'stddev', 'slope', 'mean', 'intercept')
+pcygnibc.param_names = ('amplitude', 'stddev', 'amplitude_1', 'slope', 'mean', 'intercept', 'mean_1')
+twobc.param_names = ('amplitude', 'stddev', 'amplitude_1', 'slope', 'mean', 'intercept', 'mean_1')
+
+
 def init_guess_emis1(x, y):
     y00 = (y[0] + y[-1]) / 2  # np.percentile(y, 10)
     s0 = (np.max(x) - np.min(x)) / 30
