@@ -105,10 +105,10 @@ class LinePlot:
         elif self.profile == 'bc' or self.profile == 'rc':
             amplitude, width, slope, center, continuum = sampler.flatchain.T
         elif self.profile == 'pcyg' or self.profile == 'two':
-            amplitude, width, ratio, center, continuum, offset = sampler.flatchain.T
+            amplitude, width, amplitude_1, center, continuum, center_1 = sampler.flatchain.T
             slope = 0.
         elif self.profile == 'pcygbc' or self.profile == 'twobc':
-            amplitude, width, ratio, slope, center, continuum, offset = sampler.flatchain.T
+            amplitude, width, amplitude_1, slope, center, continuum, center_1 = sampler.flatchain.T
         else:
             raise ValueError(f'profile "{self.profile}" not recognized')
 
@@ -116,14 +116,14 @@ class LinePlot:
 
         # subtract off the second emission line
         if 'two' in self.profile:
-            y1 = y1 - gaussian(x[:, np.newaxis], ratio * amplitude, width, center + offset, 0)
+            y1 = y1 - gaussian(x[:, np.newaxis], amplitude_1, width, center_1, 0)
             self.fits += self.line.axes.plot(x, y1.mean(axis=-1), color='b')
 
         # subtract off the flat or linear continuum
         y1 = y1 - continuum - slope * (x[:, np.newaxis] - center)
 
         if 'pcyg' in self.profile:
-            velocity = c * (1. - offset / center)  # absorption minimum
+            velocity = c * (1. - center_1 / center)  # absorption minimum
         else:
             velocity = 2. * np.sqrt(2. * np.log(2.)) * c * width / center  # FWHM of the emission line
         equivwidth = np.trapz(y1 / continuum, x, axis=0)

@@ -6,12 +6,12 @@ def gaussian(x, A, s, x0, y0):
     return A / s * np.exp(-(x - x0) ** 2 / (2 * s ** 2)) + y0
 
 
-def pcygni(x, A, s, rA, x0, y0, dx):
-    return gaussian(x, A, s, x0, y0) - gaussian(x, rA, s, dx, 0)
+def pcygni(x, A, s, A1, x0, y0, x1):
+    return gaussian(x, A, s, x0, y0) - gaussian(x, A1, s, x1, 0)
 
 
-def twogaussians(x, A, s, rA, x0, y0, dx):
-    return gaussian(x, A, s, x0, y0) + gaussian(x, rA * A, s, x0 + dx, 0)
+def twogaussians(x, A, s, A1, x0, y0, x1):
+    return gaussian(x, A, s, x0, y0) + gaussian(x, A1, s, x1, 0)
 
 
 def gaussbc(x, A, s, m, x0, y0):
@@ -22,12 +22,12 @@ def gaussrc(x, A, s, m, x0, y0):
     return gaussian(x, A, s, x0, y0) + m * (x - x0)
 
 
-def pcygnibc(x, A, s, rA, m, x0, y0, dx):
-    return pcygni(x, A, s, rA, x0, y0, dx) - m * (x - x0)
+def pcygnibc(x, A, s, A1, m, x0, y0, x1):
+    return pcygni(x, A, s, A1, x0, y0, x1) - m * (x - x0)
 
 
-def twobc(x, A, s, rA, m, x0, y0, dx):
-    return gaussian(x, A, s, x0, y0) + gaussian(x, rA * A, s, x0 + dx, 0) - m * (x - x0)
+def twobc(x, A, s, A1, m, x0, y0, x1):
+    return gaussian(x, A, s, x0, y0) + gaussian(x, A1, s, x1, 0) - m * (x - x0)
 
 
 def init_guess_emis1(x, y):
@@ -87,18 +87,14 @@ def init_guess_pcyg(x, y, bc=False):
 
 def init_guess_two(x, y, bc=False):
     [A0, s0], [x00, y00] = init_guess_emis1(x, y)
-    if bc:
-        slope = (y[0] - y[-1]) / (x[-1] - x[0])
-    else:
-        slope = 0
-    rA0 = 1.
     dx0 = 80.
     if bc:
-        print(np.array([A0, s0, rA0, slope]), np.array([x00, y00, dx0]))
-        return np.array([A0, s0, rA0, slope]), np.array([x00, y00, dx0])
+        slope = (y[0] - y[-1]) / (x[-1] - x[0])
+        print(np.array([A0, s0, A0, slope]), np.array([x00, y00, x00 + dx0]))
+        return np.array([A0, s0, A0, slope]), np.array([x00, y00, x00 + dx0])
     else:
-        print(np.array([A0, s0, rA0]), np.array([x00, y00, dx0]))
-        return np.array([A0, s0, rA0]), np.array([x00, y00, dx0])
+        print(np.array([A0, s0, A0]), np.array([x00, y00, x00 + dx0]))
+        return np.array([A0, s0, A0]), np.array([x00, y00, x00 + dx0])
 
 
 def MCgauss(x, y, perc_err=0.05, profile='emis', linewl=0, otherwl=0):
