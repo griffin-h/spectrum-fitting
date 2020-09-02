@@ -12,11 +12,14 @@ spectrum-fitting is being actively developed in a `public repository on GitHub <
    :maxdepth: 1
    :caption: Getting Started
 
+   setup/installation.rst
+
 .. toctree::
    :maxdepth: 1
    :caption: Examples
 
    examples/basic_example.rst
+   examples/advanced_example.rst
 
 
 

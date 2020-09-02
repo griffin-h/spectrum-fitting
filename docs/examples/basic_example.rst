@@ -1,4 +1,4 @@
-.. _basicexamples:
+.. _advancedexamples:
 
 Basic Example
 ========================
