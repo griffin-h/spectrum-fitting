@@ -1,5 +1,7 @@
 # Spectrum Fitting
 
+[![documentation status](https://readthedocs.org/projects/spectrum-fitting/badge/?version=latest&style=flat)](https://spectrum-fitting.readthedocs.io/en/latest/?badge=latest)
+
 Here is the basic syntax of the script:
 
 `specvels.py spectrum1.txt spectrum2.fits -l 656 -p emis`
