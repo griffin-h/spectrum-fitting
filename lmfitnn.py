@@ -1,3 +1,15 @@
+###### example syntax, to be deleted later 
+######## linefit(wave,flux, 4861, 15, outputplot="Hbeta", model='VP',degree=4)
+######### wave is the wavelength array, flux is flux array
+######### 4861 is the Hbeta central wavelength, the line we want to fit
+######### 15 is the line width, it is large because our resolution is quite poor
+######### outplot is simply the outputplot name
+######### model is the model chosen for the fit, currently choices are Gaussian (G), Double Gaussian (DG), both with a basleine polynomial fit (GP, or DGP), a
+######## and same for Voigt (V), Double Voigt (DV) and with polynomial (VP, DVP). 
+######## degree isthe degree of the polynomial baseline, 0 is default for nomrlized spectra
+########## read in the wave and flux arrays from example file
+########### you can also cut the input arrays to focus on just the line to see a better fit, i.e. mask the wavelnegth, flux arrays before running linefit
+
 import numpy as np
 import matplotlib.pyplot as plt
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, LinearModel, ConstantModel, PolynomialModel, ExponentialModel
