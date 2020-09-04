@@ -14,31 +14,29 @@ from fitting import MCgauss, gaussian
 
 def closestpt(x, y, refx, refy, ax=None):
     """
-    Function that returns the closest point
+    Returns the index of the point in a plotted Line2D that is closest to a mouse click on the plot axes
 
     Parameters
     ----------
     x : float
-        x co-ordinate of event
+        x co-ordinate (in pixels) of the mouse click
 
     y : float
-        y co-ordinate of event
+        y co-ordinate (in pixels) of the mouse click
 
     refx : np.ndarray
         Numpy array of wavelength values
 
-    refx : np.ndarray
+    refy : np.ndarray
         Numpy array of flux values
 
-    ax : matplotlib.axes.Axes
-        Axes of the Line2D plot. Default is None.
+    ax : matplotlib.axes.Axes, optional
+        Axes of the Line2D plot. Default is current axes.
 
     Returns
     -------
-    i : float
-        Mininimum distance from event x and y co-ordinates to the
-        points in the wavelength and flux arrays
-
+    i : int
+        Index into (refx, refy) that is closest to (x, y) in pixel space
     """
     if ax is None:
         ax = plt.gca()
@@ -50,12 +48,41 @@ def closestpt(x, y, refx, refy, ax=None):
 
 class LinePlot:
     """
-    Class to create line plot
+    Plot of a spectrum where the fitting region can be chosen interactively, with MCMC trace plots shown below
+
+    Parameters
+    ----------
+    line : matplotlib.lines.Line2D
+        Matplotlib Line2D object containing the spectrum
+
+    refx : np.ndarray
+        Numpy array of wavelength values
+
+    refy : np.ndarray
+        Numpy array of flux values
+
+    ax2 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces during burn-in
+
+    ax3 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces after burn-in
+
+    profile : str
+        Type of profile (input by the user)
+
+    linewl : float
+        Wavelength of line
+
+    otherwl : float
+        Wavelength of second line
+
+    corner : bool, optional
+        Makes corner plots if true. Default is False
 
     Attributes
     ----------
-    line : matplotlib.lines.Line2D 
-        Matplotlib Line2D object
+    line : matplotlib.lines.Line2D
+        Matplotlib Line2D object containing the spectrum
 
     refx : np.ndarray
         Numpy array of wavelength values
@@ -63,11 +90,26 @@ class LinePlot:
     refy : np.ndarray
         Numpy array of flux values
 
+    press : bool
+        Indicates whether the mouse button is currently pressed
+
+    i0 : int
+        Index of (refx, refy) closest to where the mouse button was pressed
+
+    i1 : int
+        Index of (refx, refy) closest to where the mouse button was released
+
     ax2 : matplotlib.axes._subplots.AxesSubplot
-        Matplotlib axes subplot object
+        Subplots containing the MCMC traces during burn-in
 
     ax3 : matplotlib.axes._subplots.AxesSubplot
-        Matplotlib axes subplot object
+        Subplots containing the MCMC traces after burn-in
+
+    fits : list
+        Line2D objects plotted during the MCMC fitting. These are cleared after each mouse click.
+
+    params : list
+        Measurements from the MCMC fit: [mean(velocity), std(velocity), mean(EW), std(EW), mean(flux), std(flux)]
 
     profile : str
         Type of profile (input by the user)
@@ -79,7 +121,7 @@ class LinePlot:
         Wavelength of second line
 
     corner : bool
-        Makes corener plots if true. Default is False
+        Makes corner plots if true
 
     Methods
     -------
@@ -90,37 +132,6 @@ class LinePlot:
     """
 
     def __init__(self, line, refx, refy, ax2, ax3, profile, linewl, otherwl, corner=False):
-        """
-        Parameters
-        ----------
-        line : matplotlib.lines.Line2D 
-            Matplotlib Line2D object
-
-        refx : np.ndarray
-            Numpy array of wavelength values
-            
-        refy : np.ndarray
-            Numpy array of flux values
-
-        ax2 : matplotlib.axes._subplots.AxesSubplot
-            Matplotlib axes subplot object
-
-        ax3 : matplotlib.axes._subplots.AxesSubplot
-            Matplotlib axes subplot object
-
-        profile : str
-            Type of profile (input by the user)
-
-        linewl : float
-            Wavelength of line 
-
-        otherwl : float
-            Wavelength of second line
-
-        corner : bool
-            Makes corner plots if true. Default is False
-        """
-
         self.line = line
         self.refx = refx
         self.refy = refy
@@ -267,26 +278,16 @@ class LinePlot:
         self.line.figure.canvas.mpl_disconnect(self.cidmotion)
 
 
-def _labelaxes(*axes_sets):
-    """Don't see where this function is used"""
-
-    for ax in axes_sets:
-        ax[0].set_ylabel('$A$')
-        ax[1].set_ylabel('$\sigma$')
-        ax[2].set_ylabel('$x_0$')
-        ax[3].set_ylabel('$y_0$')
-        ax[3].set_xlabel('MCMC Step')
-
-
 def plot_results(t, ycol='flux'):
     """
-    Plot the results from the table
+    Plot the results of the MCMC fit from the table
 
     Parameters
     ----------
     t : astropy.table.Table
         The astropy table with the results
-
+    ycol : str, optional
+        The column to plot on the vertical axis. Default: 'flux'.
     """
 
     plt.errorbar(t['phase'], t[ycol], t['d'+ycol], fmt='o')
@@ -297,7 +298,7 @@ def plot_results(t, ycol='flux'):
 
 def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=False):
     """
-    Measure spec levels
+    Fits a line profile to the spectrum and measures velocity, equivalent width, and flux
 
     Parameters
     ----------
@@ -308,15 +309,15 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
         Type of profile (input by the user)
 
     linewl : float
-        Wavelength of line
+        Wavelength of line (units must match the input spectrum)
 
-    l2 : float
-        Wavelength of second line. Default is 0.
+    l2 : float, optional
+        Wavelength of second line, if fitting two lines (units must match the input spectrum).
 
-    viewwidth : float
-        Estimated width of line. Default is 20.
+    viewwidth : float, optional
+        Width of the spectrum plot in wavelength (units must match the input spectrum). Default is 20.
 
-    corner : bool
+    corner : bool, optional
         Makes corner plots if true. Default is False
 
 
@@ -406,23 +407,23 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
 
 def read_spectra(filenames, redshift, refmjd=0.):
     """
-    Read spetra from file and convert to rest wavelength
+    Read spectra from file and convert to rest wavelength
 
     Parameters
     ----------
     filenames : list
         List of filenames of the spectra to be read
 
-    redshift : 
+    redshift : float
         Redshift to correct the spectra
 
-    refmjd : 
-        Reference MJD to calculate phase
+    refmjd : float, optional
+        Reference MJD to calculate phase. Default: 0.
 
     Returns
     -------
     spectra : astropy.table.Table
-        Astropy table containing the spectrum to be fitted
+        Astropy table containing the spectra to be fitted
     """
 
     wls = []
