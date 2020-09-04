@@ -13,6 +13,31 @@ from fitting import MCgauss, gaussian
 
 
 def closestpt(x, y, refx, refy, ax=None):
+    """
+    Returns the index of the point in a plotted Line2D that is closest to a mouse click on the plot axes
+
+    Parameters
+    ----------
+    x : float
+        x co-ordinate (in pixels) of the mouse click
+
+    y : float
+        y co-ordinate (in pixels) of the mouse click
+
+    refx : np.ndarray
+        Numpy array of wavelength values
+
+    refy : np.ndarray
+        Numpy array of flux values
+
+    ax : matplotlib.axes.Axes, optional
+        Axes of the Line2D plot. Default is current axes.
+
+    Returns
+    -------
+    i : int
+        Index into (refx, refy) that is closest to (x, y) in pixel space
+    """
     if ax is None:
         ax = plt.gca()
     pixx, pixy = ax.transData.transform(list(zip(refx, refy))).T
@@ -22,6 +47,90 @@ def closestpt(x, y, refx, refy, ax=None):
 
 
 class LinePlot:
+    """
+    Plot of a spectrum where the fitting region can be chosen interactively, with MCMC trace plots shown below
+
+    Parameters
+    ----------
+    line : matplotlib.lines.Line2D
+        Matplotlib Line2D object containing the spectrum
+
+    refx : np.ndarray
+        Numpy array of wavelength values
+
+    refy : np.ndarray
+        Numpy array of flux values
+
+    ax2 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces during burn-in
+
+    ax3 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces after burn-in
+
+    profile : str
+        Type of profile (input by the user)
+
+    linewl : float
+        Wavelength of line
+
+    otherwl : float
+        Wavelength of second line
+
+    corner : bool, optional
+        Makes corner plots if true. Default is False
+
+    Attributes
+    ----------
+    line : matplotlib.lines.Line2D
+        Matplotlib Line2D object containing the spectrum
+
+    refx : np.ndarray
+        Numpy array of wavelength values
+        
+    refy : np.ndarray
+        Numpy array of flux values
+
+    press : bool
+        Indicates whether the mouse button is currently pressed
+
+    i0 : int
+        Index of (refx, refy) closest to where the mouse button was pressed
+
+    i1 : int
+        Index of (refx, refy) closest to where the mouse button was released
+
+    ax2 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces during burn-in
+
+    ax3 : matplotlib.axes._subplots.AxesSubplot
+        Subplots containing the MCMC traces after burn-in
+
+    fits : list
+        Line2D objects plotted during the MCMC fitting. These are cleared after each mouse click.
+
+    params : list
+        Measurements from the MCMC fit: [mean(velocity), std(velocity), mean(EW), std(EW), mean(flux), std(flux)]
+
+    profile : str
+        Type of profile (input by the user)
+
+    linewl : float
+        Wavelength of line 
+
+    otherwl : float
+        Wavelength of second line
+
+    corner : bool
+        Makes corner plots if true
+
+    Methods
+    -------
+    connect()
+        connect to all the events needed
+    disconnect()
+        disconnect all stored connection ids
+    """
+
     def __init__(self, line, refx, refy, ax2, ax3, profile, linewl, otherwl, corner=False):
         self.line = line
         self.refx = refx
@@ -39,15 +148,18 @@ class LinePlot:
         self.corner = corner
 
     def connect(self):
-        """connect to all the events we need"""
-        self.cidpress = self.line.figure.canvas.mpl_connect(
-            'button_press_event', self.on_press)
-        self.cidrelease = self.line.figure.canvas.mpl_connect(
-            'button_release_event', self.on_release)
-        self.cidmotion = self.line.figure.canvas.mpl_connect(
-            'motion_notify_event', self.on_motion)
+        """
+        Connect to all the events we need.
 
-    def on_press(self, event):
+        """
+        self.cidpress = self.line.figure.canvas.mpl_connect(
+            'button_press_event', self._on_press)
+        self.cidrelease = self.line.figure.canvas.mpl_connect(
+            'button_release_event', self._on_release)
+        self.cidmotion = self.line.figure.canvas.mpl_connect(
+            'motion_notify_event', self._on_motion)
+
+    def _on_press(self, event):
         """on button press we will see if the mouse is over us and store some data"""
         if event.inaxes != self.line.axes: return
         self.press = True
@@ -64,7 +176,7 @@ class LinePlot:
         self.fits = []
         self.line.figure.canvas.draw()
 
-    def on_motion(self, event):
+    def _on_motion(self, event):
         """on motion we will move the line if the mouse is over us"""
         if not self.press: return
         x0 = self.line.get_xdata()
@@ -75,7 +187,7 @@ class LinePlot:
         self.line.set_ydata(y0)
         self.line.figure.canvas.draw()
 
-    def on_release(self, event):
+    def _on_release(self, event):
         """on release we reset the press data"""
         self.press = False
         self.i1 = closestpt(event.x, event.y, self.refx, self.refy, self.line.axes)
@@ -166,16 +278,18 @@ class LinePlot:
         self.line.figure.canvas.mpl_disconnect(self.cidmotion)
 
 
-def labelaxes(*axes_sets):
-    for ax in axes_sets:
-        ax[0].set_ylabel('$A$')
-        ax[1].set_ylabel('$\sigma$')
-        ax[2].set_ylabel('$x_0$')
-        ax[3].set_ylabel('$y_0$')
-        ax[3].set_xlabel('MCMC Step')
-
-
 def plot_results(t, ycol='flux'):
+    """
+    Plot the results of the MCMC fit from the table
+
+    Parameters
+    ----------
+    t : astropy.table.Table
+        The astropy table with the results
+    ycol : str, optional
+        The column to plot on the vertical axis. Default: 'flux'.
+    """
+
     plt.errorbar(t['phase'], t[ycol], t['d'+ycol], fmt='o')
     plt.xlabel('Phase')
     plt.ylabel(ycol.capitalize())
@@ -183,6 +297,36 @@ def plot_results(t, ycol='flux'):
 
 
 def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=False):
+    """
+    Fits a line profile to the spectrum and measures velocity, equivalent width, and flux
+
+    Parameters
+    ----------
+    spectra : astropy.table.Table
+        Astropy table containing the spectra to be fitted
+
+    profile : str
+        Type of profile (input by the user)
+
+    linewl : float
+        Wavelength of line (units must match the input spectrum)
+
+    l2 : float, optional
+        Wavelength of second line, if fitting two lines (units must match the input spectrum).
+
+    viewwidth : float, optional
+        Width of the spectrum plot in wavelength (units must match the input spectrum). Default is 20.
+
+    corner : bool, optional
+        Makes corner plots if true. Default is False
+
+
+    Returns
+    -------
+    tout : astropy.table.Table
+        The astropy table with the results 
+    """
+
     tparams = Table(names=('v', 'dv', 'EW', 'dEW', 'flux', 'dflux'))
     if profile == 'two':
         nparams = 6
@@ -262,6 +406,26 @@ def measure_specvels(spectra, profile, linewl, l2=0., viewwidth=20., corner=Fals
 
 
 def read_spectra(filenames, redshift, refmjd=0.):
+    """
+    Read spectra from file and convert to rest wavelength
+
+    Parameters
+    ----------
+    filenames : list
+        List of filenames of the spectra to be read
+
+    redshift : float
+        Redshift to correct the spectra
+
+    refmjd : float, optional
+        Reference MJD to calculate phase. Default: 0.
+
+    Returns
+    -------
+    spectra : astropy.table.Table
+        Astropy table containing the spectra to be fitted
+    """
+
     wls = []
     fluxes = []
     dates = []
