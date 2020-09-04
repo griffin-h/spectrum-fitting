@@ -21,6 +21,11 @@ spectrum-fitting is being actively developed in a `public repository on GitHub <
    examples/basic_example.rst
    examples/advanced_example.rst
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference
+
+   api.rst
 
 
 Indices and tables
