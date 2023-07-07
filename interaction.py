@@ -451,12 +451,12 @@ def read_spectra(filenames, redshift, refmjd=0.):
         instruments.append('fake')
         spectra = Table([filenames, dates, telescopes, instruments, wls, fluxes],
                         names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
-                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
+                        dtype=[str, object, str, str, np.ndarray, np.ndarray])
         spectra = spectra[:-1]
     else:
         spectra = Table([filenames, dates, telescopes, instruments, wls, fluxes],
                         names=['filename', 'date', 'telescope', 'instrument', 'wl', 'flux'],
-                        dtype=[str, np.object, str, str, np.ndarray, np.ndarray])
+                        dtype=[str, object, str, str, np.ndarray, np.ndarray])
     spectra['phase'] = (spectra['date'].mjd - refmjd) / (1. + redshift)
     return spectra
 
